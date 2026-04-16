@@ -1,0 +1,3 @@
+-keep class com.subtitlecreator.jni.** { *; }
+-keepclasseswithmembernames class * { native <methods>; }
+-keep class com.arthenica.ffmpegkit.** { *; }

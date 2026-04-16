@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Subtitles Creator</string>
+    <string name="home_title">Subtitles Creator</string>
+    <string name="home_subtitle">On-device transcription with Whisper</string>
+    <string name="btn_download_model">Download model</string>
+    <string name="btn_pick_video">Pick video</string>
+    <string name="btn_transcribe">Transcribe</string>
+    <string name="btn_export">Burn subtitles</string>
+    <string name="transcribing">Transcribing…</string>
+    <string name="exporting">Burning subtitles…</string>
+    <string name="model_ready">Model ready</string>
+</resources>
