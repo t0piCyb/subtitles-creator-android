@@ -57,13 +57,16 @@ class WhisperService {
             onProgress = onProgress
         )
 
-        // Trust whisper's native t0/t1 so subtitles only show while each word is
-        // actually spoken — silences between words stay silent on screen.
+        // whisper's t0 marks where the word starts — trust it.
+        // whisper's t1 often gets stretched to the next event (next word / end of
+        // chunk), so the last word before a pause can occupy 5+ seconds of silence.
+        // Cap each word's duration to a per-character budget.
         val merged = mergeCompoundFragments(raw)
+        val capped = capWordDurations(merged)
 
         TranscriptionResult(
             language = language,
-            subtitles = merged
+            subtitles = capped
         )
     }
 
@@ -116,6 +119,23 @@ class WhisperService {
             }
         }
         return out
+    }
+
+    /**
+     * Whisper often stretches a word's `t1` across a following silence so a single
+     * short word can occupy 5+ seconds of screen time. Cap each word to a realistic
+     * on-screen duration based on its length (typical speech is ~120 ms per char).
+     *
+     * - minimum cap: 400 ms (so very short words like "ok" aren't truncated)
+     * - maximum cap: 1500 ms (long compound words still fit)
+     */
+    private fun capWordDurations(subs: List<Subtitle>): List<Subtitle> {
+        return subs.map { s ->
+            val budget = (200 + s.text.length * 120).toLong()
+                .coerceIn(400, 1500)
+            val cappedEnd = (s.startMs + budget).coerceAtMost(s.endMs)
+            if (cappedEnd < s.endMs) s.copy(endMs = cappedEnd) else s
+        }
     }
 
     companion object { private const val TAG = "WhisperService" }
