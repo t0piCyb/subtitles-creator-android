@@ -28,7 +28,7 @@ object PipelineStore {
         val exportProgress: Int = 0,
         val exportedFile: File? = null,
         val savedUri: Uri? = null,
-        val subtitleFontSize: Int = 72,
+        val subtitleFontSize: Int = 45,
         val error: String? = null
     )
 

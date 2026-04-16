@@ -122,19 +122,20 @@ class WhisperService {
     }
 
     /**
-     * Whisper often stretches a word's `t1` across a following silence so a single
-     * short word can occupy 5+ seconds of screen time. Cap each word to a realistic
-     * on-screen duration based on its length (typical speech is ~120 ms per char).
+     * Whisper often stretches a word's `t0` backwards into the preceding silence
+     * (or `t1` forwards, for the last word of a chunk), so a short word can
+     * occupy 5+ seconds of screen time. We trust `t1` (the word's actual end)
+     * and trim the **start** forward so the subtitle only appears during the
+     * word's real speaking window — leading silences stay silent on screen.
      *
-     * - minimum cap: 400 ms (so very short words like "ok" aren't truncated)
-     * - maximum cap: 1500 ms (long compound words still fit)
+     * Budget = ~120 ms per char, clamped to [400 ms, 1500 ms].
      */
     private fun capWordDurations(subs: List<Subtitle>): List<Subtitle> {
         return subs.map { s ->
             val budget = (200 + s.text.length * 120).toLong()
                 .coerceIn(400, 1500)
-            val cappedEnd = (s.startMs + budget).coerceAtMost(s.endMs)
-            if (cappedEnd < s.endMs) s.copy(endMs = cappedEnd) else s
+            val cappedStart = (s.endMs - budget).coerceAtLeast(s.startMs)
+            if (cappedStart > s.startMs) s.copy(startMs = cappedStart) else s
         }
     }
 
