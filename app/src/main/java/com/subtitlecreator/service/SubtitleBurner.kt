@@ -7,7 +7,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
-import android.text.style.StyleSpan
+import android.text.style.TypefaceSpan
 import android.util.Log
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
@@ -39,6 +39,15 @@ import com.google.common.collect.ImmutableList
  */
 class SubtitleBurner(private val context: Context) {
 
+    /** Load Montserrat-Bold.ttf once from assets and reuse for every export. */
+    private val montserrat: Typeface by lazy {
+        runCatching { Typeface.createFromAsset(context.assets, "fonts/Montserrat-Bold.ttf") }
+            .getOrElse {
+                Log.w(TAG, "Could not load Montserrat-Bold.ttf, falling back to system bold")
+                Typeface.DEFAULT_BOLD
+            }
+    }
+
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     suspend fun burn(
         videoIn: File,
@@ -49,7 +58,7 @@ class SubtitleBurner(private val context: Context) {
     ): File = withContext(Dispatchers.Main) {
         if (videoOut.exists()) videoOut.delete()
 
-        val overlay = SubtitleTextOverlay(subtitles, fontSize)
+        val overlay = SubtitleTextOverlay(subtitles, fontSize, montserrat)
         val overlayEffect: Effect = OverlayEffect(ImmutableList.of<androidx.media3.effect.TextureOverlay>(overlay))
 
         val edited = EditedMediaItem.Builder(MediaItem.fromUri(videoIn.toURI().toString()))
@@ -96,7 +105,8 @@ class SubtitleBurner(private val context: Context) {
     @androidx.media3.common.util.UnstableApi
     private class SubtitleTextOverlay(
         private val subs: List<Subtitle>,
-        private val fontSizePx: Int
+        private val fontSizePx: Int,
+        private val typeface: Typeface
     ) : TextOverlay() {
 
         private val overlaySettings = OverlaySettings.Builder()
@@ -121,7 +131,9 @@ class SubtitleBurner(private val context: Context) {
             val s = SpannableString(sub.text)
             s.setSpan(AbsoluteSizeSpan(fontSizePx), 0, s.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             s.setSpan(ForegroundColorSpan(Color.rgb(0xFF, 0xD4, 0x00)), 0, s.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            s.setSpan(StyleSpan(Typeface.BOLD), 0, s.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            // TypefaceSpan(Typeface) is API 28+ (we require minSdk=28). Montserrat-Bold
+            // is already a bold cut — no StyleSpan(BOLD) on top or we'd get faux-bold.
+            s.setSpan(TypefaceSpan(typeface), 0, s.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             return s
         }
 
