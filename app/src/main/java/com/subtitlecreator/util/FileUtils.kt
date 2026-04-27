@@ -2,6 +2,7 @@ package com.subtitlecreator.util
 
 import android.content.ContentValues
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -16,6 +17,24 @@ object FileUtils {
             out.outputStream().use { input.copyTo(it) }
         } ?: error("Cannot open $uri")
         return out
+    }
+
+    data class VideoDimensions(val widthPx: Int, val heightPx: Int)
+
+    /** Read display dimensions (post-rotation) from a video file. */
+    fun videoDimensions(file: File): VideoDimensions {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.absolutePath)
+            val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 1920
+            val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 1080
+            val rot = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+            if (rot == 90 || rot == 270) VideoDimensions(h, w) else VideoDimensions(w, h)
+        } catch (t: Throwable) {
+            VideoDimensions(1920, 1080)
+        } finally {
+            runCatching { retriever.release() }
+        }
     }
 
     fun outputVideoFile(context: Context): File {

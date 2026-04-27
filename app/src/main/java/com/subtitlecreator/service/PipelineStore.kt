@@ -21,6 +21,8 @@ object PipelineStore {
         val modelDownloadMb: Int = 0,
         val modelTotalMb: Int = 0,
         val videoFile: File? = null,
+        val videoWidthPx: Int = 1920,
+        val videoHeightPx: Int = 1080,
         val transcribeProgress: Int = 0,
         val transcribing: Boolean = false,
         val subtitles: List<Subtitle> = emptyList(),
@@ -28,7 +30,9 @@ object PipelineStore {
         val exportProgress: Int = 0,
         val exportedFile: File? = null,
         val savedUri: Uri? = null,
-        val subtitleFontSize: Int = 45,
+        val subtitleFontSize: Int = 50,
+        // Fraction-from-top for the TOP of the subtitle text (0 = very top, 1 = very bottom).
+        val subtitlePositionFraction: Float = 0.72f,
         val error: String? = null
     )
 

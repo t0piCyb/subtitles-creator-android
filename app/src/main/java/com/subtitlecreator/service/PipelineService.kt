@@ -135,11 +135,18 @@ class PipelineService : Service() {
 
                 val video = File(videoPath)
                 val out = FileUtils.outputVideoFile(applicationContext)
-                val fontSize = PipelineStore.current().subtitleFontSize
+                val cur = PipelineStore.current()
+                val fontSize = cur.subtitleFontSize
                 // Media3 TextOverlay uses pixel size scaled to the video frame's bitmap;
                 // ~2x the ASS fontsize looks right on 1080p.
-                val pxSize = (fontSize * 2).coerceIn(48, 280)
-                burner.burn(video, subs, out, fontSize = pxSize) { p ->
+                val pxSize = (fontSize * 2).coerceIn(48, 400)
+                burner.burn(
+                    videoIn = video,
+                    subtitles = subs,
+                    videoOut = out,
+                    fontSize = pxSize,
+                    positionFraction = cur.subtitlePositionFraction
+                ) { p ->
                     PipelineStore.update { it.copy(exportProgress = p) }
                     updateNotification("Exporting $p%", p)
                 }

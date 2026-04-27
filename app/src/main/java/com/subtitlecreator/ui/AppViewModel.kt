@@ -40,8 +40,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun onVideoPicked(uri: Uri) {
         viewModelScope.launch {
             val file = FileUtils.copyUriToAppStorage(getApplication(), uri, "pick_${System.currentTimeMillis()}.mp4")
+            val dims = FileUtils.videoDimensions(file)
             PipelineStore.update {
-                it.copy(videoFile = file, subtitles = emptyList(), exportedFile = null, savedUri = null, error = null)
+                it.copy(
+                    videoFile = file,
+                    videoWidthPx = dims.widthPx,
+                    videoHeightPx = dims.heightPx,
+                    subtitles = emptyList(),
+                    exportedFile = null,
+                    savedUri = null,
+                    error = null
+                )
             }
         }
     }
@@ -93,7 +102,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setFontSize(size: Int) {
-        PipelineStore.update { it.copy(subtitleFontSize = size.coerceIn(24, 160)) }
+        PipelineStore.update { it.copy(subtitleFontSize = size.coerceIn(24, 200)) }
+    }
+
+    fun setSubtitlePosition(fraction: Float) {
+        PipelineStore.update { it.copy(subtitlePositionFraction = fraction.coerceIn(0f, 0.95f)) }
     }
 
     fun clearError() = PipelineStore.update { it.copy(error = null) }

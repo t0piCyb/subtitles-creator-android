@@ -57,11 +57,12 @@ class SubtitleBurner(private val context: Context) {
         subtitles: List<Subtitle>,
         videoOut: File,
         fontSize: Int = 72,
+        positionFraction: Float = 0.72f,
         onProgress: (Int) -> Unit = {}
     ): File = withContext(Dispatchers.Main) {
         if (videoOut.exists()) videoOut.delete()
 
-        val overlay = SubtitleBitmapOverlay(subtitles, fontSize, montserrat)
+        val overlay = SubtitleBitmapOverlay(subtitles, fontSize, montserrat, positionFraction)
         val overlayEffect: Effect = OverlayEffect(ImmutableList.of<androidx.media3.effect.TextureOverlay>(overlay))
 
         val edited = EditedMediaItem.Builder(MediaItem.fromUri(videoIn.toURI().toString()))
@@ -109,12 +110,18 @@ class SubtitleBurner(private val context: Context) {
     private class SubtitleBitmapOverlay(
         private val subs: List<Subtitle>,
         private val fontSizePx: Int,
-        private val typeface: Typeface
+        private val typeface: Typeface,
+        private val positionFraction: Float
     ) : BitmapOverlay() {
 
+        // positionFraction = 0 → top of video, 1 → bottom. Media3 anchor Y is NDC (1=top, -1=bottom).
+        // We pin the top of the overlay bitmap at the fraction; since the bitmap has a tiny top
+        // padding (0.05 × fontSize) to protect the shadow from clipping, the glyph top ends up
+        // only ~0.5% of frame height below the user-chosen position — visually indistinguishable
+        // from the Compose preview.
         private val overlaySettings = OverlaySettings.Builder()
-            .setOverlayFrameAnchor(0f, 1f)        // anchor = horizontal center, top of overlay
-            .setBackgroundFrameAnchor(0f, -0.7f)  // placed 85% down the frame
+            .setOverlayFrameAnchor(0f, 1f)
+            .setBackgroundFrameAnchor(0f, (1f - 2f * positionFraction).coerceIn(-1f, 1f))
             .build()
 
         private val emptyBitmap: Bitmap by lazy {
@@ -146,17 +153,21 @@ class SubtitleBurner(private val context: Context) {
 
             cache[text]?.let { return it }
 
-            // Extra horizontal padding to accommodate the shadow's blur + x-offset
-            // without clipping. Vertical padding follows the same rule.
+            // Horizontal padding accommodates the shadow's dx + blur on both sides.
+            // Top padding is deliberately minimal (just enough to avoid clipping the
+            // shadow's ≈0.035 × fontSize upward extension) so the glyph top sits flush
+            // with the bitmap top — this is what lets the Compose preview and the burned
+            // output land at the same on-screen position.
             val paddingX = (fontSizePx * 0.35f).toInt()
-            val paddingY = (fontSizePx * 0.35f).toInt()
+            val paddingTop = (fontSizePx * 0.05f).toInt().coerceAtLeast(2)
+            val paddingBottom = (fontSizePx * 0.35f).toInt()
             val textWidth = paint.measureText(text).toInt() + paddingX * 2
             val fm = paint.fontMetrics
-            val textHeight = (fm.descent - fm.ascent).toInt() + paddingY * 2
+            val textHeight = (fm.descent - fm.ascent).toInt() + paddingTop + paddingBottom
 
             val bitmap = Bitmap.createBitmap(textWidth.coerceAtLeast(2), textHeight.coerceAtLeast(2), Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            val baseline = paddingY - fm.ascent
+            val baseline = paddingTop - fm.ascent
             canvas.drawText(text, paddingX.toFloat(), baseline, paint)
 
             if (cache.size >= cacheMax) cache.entries.iterator().next().let { cache.remove(it.key) }
